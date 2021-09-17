@@ -1,0 +1,11 @@
+Flask
+docker
+six
+gunicorn
+flask-cors
+hurry.filesize
+psutil
+gevent
+flask-login
+python-pam
+pyjwt
