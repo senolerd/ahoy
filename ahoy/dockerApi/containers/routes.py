@@ -27,7 +27,6 @@ def docker_list():
 
 @docker_containers_bp.route('/run', methods=["POST"])
 def run_container():
-    print(json.loads(request.data.decode())['ports'])
     # ports format {'1900/udp': 1900, '32400/tcp': 32400}
     try:
         docker_client.containers.run( **json.loads(request.data.decode()) )
@@ -46,7 +45,6 @@ def run_container():
 
 @docker_containers_bp.route('/remove', methods=["POST"])
 def remove_container():
-    print(request.data.decode())
     container_info = json.loads(request.data.decode())
 
     try:
@@ -56,7 +54,6 @@ def remove_container():
     except APIError as err:
         return {"msg": str(err.explanation).split(':')[-1]},400
     except Exception as err:
-        print(err)
         return {"msg":"Something went wrong."}
 
 
@@ -72,7 +69,6 @@ def container_start():
             except APIError as err:
                 return {"msg": str(err.explanation).split(':')[-1]},400
             except Exception as err:
-                print(err)
                 return {"msg":"Something went wrong."}
 
     return {'state':"start"}
@@ -90,7 +86,6 @@ def container_stop():
             except APIError as err:
                 return {"msg": str(err.explanation).split(':')[-1]},400
             except Exception as err:
-                print(err)
                 return {"msg":"Something went wrong."}
 
     return {'state':"stop"}

@@ -1,5 +1,4 @@
-import re
-from flask import Flask, config
+from flask import Flask
 from flask import json, request
 from flask.json import jsonify
 import psutil,pam, jwt
@@ -8,6 +7,7 @@ from ahoy.dockerApi import docker_bp
 from flask_cors import CORS
 from psutil import net_if_addrs
 from flask_login import LoginManager
+import socket
 
 
 
@@ -20,10 +20,10 @@ login_manager.init_app(app)
 
 
 
-@login_manager.user_loader
-def load_user(user_id):
-    print("User loader is run")
-    return True
+# @login_manager.user_loader
+# def load_user(user_id):
+#     print("User loader is run")
+#     return True
 
 app.register_blueprint(docker_bp)
 
@@ -36,14 +36,9 @@ app.register_blueprint(docker_bp)
 @app.route('/login', methods=["POST"])
 def login():
     p = pam.pam()
-
     request_data_dict = dict(json.loads(request.data.decode()))
-    # print("Heeaders: ",request.headers)
-    # print("Data: ",request.data)
-
     username = request_data_dict.get("username")
     password = request_data_dict.get("password")
-
 
     if p.authenticate(username, password):
         token = jwt.encode({"user":username}, app.config["SECRET_KEY"], algorithm="HS256")
@@ -57,10 +52,8 @@ def validate():
     token = request.headers.get('token')
     try:
         tokenPayload = jwt.decode(token, app.config["SECRET_KEY"], algorithms=["HS256"])
-        print("TOKENS USER: ", tokenPayload)
         return tokenPayload,200
     except Exception as e:
-        print('ERROR' , e)
         return {"status":"err"},401
 
 
@@ -68,12 +61,10 @@ def validate():
 def hello_world():
     return app.send_static_file('index.html')
 
-
 @app.route('/ip')
 def ip_addresses():
     iflist = []
     for addr in net_if_addrs():
-
 
         if (net_if_addrs()[addr][0].netmask != None and net_if_addrs()[addr][0].broadcast != None and addr[0:6] != "docker"):
             interface = {
@@ -84,14 +75,24 @@ def ip_addresses():
             }
 
             iflist.append(interface)
+
     return jsonify(iflist)
 
 
-@app.route('/portcheck/<port>')
-def checkport(port):
-    print("XXX: ",  psutil.net_if_addrs()   )
+# @app.route('/portavailability', methods=["POST"])
+# def checkport():
+    
+#     data = json.loads(request.data.decode())
 
-    return "ok"
+#     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#     result = s.connect_ex(('127.0.0.1', int(port)))
+
+#     if result == 0:
+#         return {"isPortAvailable":False}
+#     s.close()
+
+#     return {"isPortAvailable":True}
+    
 
 
 # def port_check(ip_port):

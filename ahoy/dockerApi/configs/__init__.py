@@ -15,14 +15,12 @@ def list():
 
 @docker_configs_bp.route('/get', methods=['POST'])
 def get():
-    print("GET: ",request.data.decode())
     return {"config":"here"}
 
 
 @docker_configs_bp.route('/create', methods=['POST'])
 def create():
     
-    print("Create Config data: ", json.loads(request.data.decode()))
     config_data = json.loads(request.data.decode())
 
     try:

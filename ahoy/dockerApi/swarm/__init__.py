@@ -23,7 +23,6 @@ def swarm_attrs():
     try:
         return json.jsonify(docker_client.swarm.attrs),200
     except APIError as e:
-        print("ERR status code: ", e.status_code)
         return {"error":e.explanation}, e.status_code 
 
 

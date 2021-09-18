@@ -11,13 +11,6 @@ from docker.errors import APIError, ImageNotFound, BuildError
 from io import BytesIO
 import concurrent.futures
 
-# @docker_images_bp.before_app_first_request
-# def before_first_request():
-#     try:
-#         print("before_app_first_request :: ", current_app.image_building_status)
-#     except Exception as _:
-#         current_app.image_building_status=None
-
 
 @docker_images_bp.route('/')
 def index():
@@ -47,14 +40,11 @@ def pull_image():
 
     try:
         if ':' in name:
-            print('download with tag')
             result = docker_client.images.pull(
                 name.split(':')[0], tag=name.split(':')[1])
-            print(result.attrs['RepoTags'][0])
             return {"msg": f"{result.attrs['RepoTags'][0]} is added."}, 200
 
         else:
-            print('download for search')
             result = docker_client.images.pull(name)
             return {"msg": f"{result.attrs['RepoTags'][0]} is added."}, 200
 
@@ -62,18 +52,15 @@ def pull_image():
         return {"error": e.explanation}, 404
 
     except Exception as e:
-        print(e.args)
         return {"error": e}, 400
 
 
 @docker_images_bp.route('/delete', methods=['POST'])
 def delete_image():
     try:
-        print("Image to remove: ", request.data.decode())
         docker_client.images.remove(request.data.decode())
         return {"status": "true"}
     except Exception as err:
-        print(err)
         return {"msg": f"Something went wrong while deleting image, {err}"}, 409
 
 
@@ -83,7 +70,6 @@ def delete_image():
 def build():
 
     def updateImageStatus(msg):
-        # print("Update is run!!")
         with open('/tmp/_image_building_status','w') as f:
             f.write(json.dumps(msg))
 
@@ -92,16 +78,13 @@ def build():
         try:
             with open('/tmp/_image_building_status','r') as f:
                 content = f.readline()
-                # print("content: ",content)
                 if content.__len__() > 0: status = content 
         except:
             pass
 
         if status:
-            # print(status)
             return jsonify(json.loads(status))
         else:
-            print("Errore")
             return {"msg": "No image found on building ", "code": 200}
             
 
@@ -126,8 +109,6 @@ def build():
             thread = executor.submit(build_image, Dockerfile=f,  tag=tag)
             result = thread.result()
 
-            print('Result: ', result)
-
             building_log.append(result)
             updateImageStatus(building_log) 
 
@@ -139,8 +120,6 @@ def build():
 def build_image(Dockerfile, tag):
 
     try:
-        print('building is started.')
-
         build_response = docker_client.images.build(
             fileobj=Dockerfile, rm=True, tag=tag, labels={"ahoy_image": "True"})
 
@@ -148,13 +127,10 @@ def build_image(Dockerfile, tag):
         for line in build_response[1]:
             if "stream" in line: print('STREAM: ', build_log.append(str(line['stream']).strip()))
            
-        print('building is end.')
         return {"msg": build_log, "code": 200}
 
     except BuildError as e:
-        print('Building error...')
         return {"error": [f"Building error: {e}"], "code": 400}
   
     except APIError as e:
-        print('Api error...')
         return {"error": [f"Api error: {e.explanation}"], "code": 400}

@@ -25,14 +25,12 @@ def volumes_list():
 def volume_create():
 
     volume_id = json.loads(request.data.decode())['volume_id']
-    print('Create volume: ', volume_id)
 
     try:
         docker_client.volumes.create(name=volume_id)
         return {'status': f"{volume_id} is created."}, 200
 
     except APIError as err:
-        print(err.explanation)
         return {'status':err.explanation}, 400
 
 
@@ -49,5 +47,4 @@ def volume_delete():
         return {'status': f"{volume_id} is deleted."}, 200
 
     except APIError as err:
-        print(err.explanation)
         return {'status':err.explanation}, 400

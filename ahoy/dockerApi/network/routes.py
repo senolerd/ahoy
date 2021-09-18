@@ -25,7 +25,6 @@ def networks_list():
 def createNetwork():
     if request.method == 'POST':
         network_info = json.loads(request.data.decode())
-        # print('Name: ',  network_info['name']  )
         try:
             docker_response = docker_client.networks.create(
                 attachable=network_info['attachable'],
@@ -39,7 +38,6 @@ def createNetwork():
             return jsonify(docker_response.attrs), 200
 
         except docker_api_error as err:
-            print(err.explanation)
             return {"error": err.explanation}, 400
 
     return {"error": "unknown_request_method"}, 400
