@@ -27,15 +27,11 @@ def ceph_nodes():
     return jsonify(ceph_nodes)
 
 
-
 @ceph_bp.route('/all_disks')
 def all_disks():
     print(request.host_url)
     # for node in json.loads(ceph_nodes().get_data().decode()):
     #     print(node['Status']['Addr'])
-
-
-
     return "all disks"
 
 
