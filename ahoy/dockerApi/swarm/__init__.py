@@ -1,3 +1,4 @@
+import docker
 from ahoy.dockerApi import docker_client
 from flask import Blueprint, json, request, session, current_app
 from docker.errors import APIError, NotFound
@@ -25,22 +26,17 @@ def swarm_attrs():
     except APIError as e:
         return {"error":e.explanation}, e.status_code 
 
-
 @docker_swarm_bp.route('/node/update', methods=['POST'])
 def node_update():
-    
-    #ToDo: get Swarm node and spec object
-
-    # node_spec = {'Availability': 'active',
-    #              'Name': 'node-name',
-    #              'Role': 'manager',
-    #              'Labels': {'foo': 'bar'}
-    #             }
-    # node.update(node_spec)
+    req_node_data = json.loads(request.data.decode())
+    node = docker_client.nodes.get(req_node_data['ID'])
+    try:
+        node.update(req_node_data['Spec'])
+        return {"msg":f"{node.attrs['Description']['Hostname']} is updated"}, 200
+    except APIError as e:
+        return {"msg": e.explanation}, e.status_code
 
 
-    return "update"
-# /Swarm Node
 
 @docker_swarm_bp.route('/node/remove', methods=['POST'])
 def node_remove():
@@ -51,7 +47,7 @@ def node_remove():
     except NotFound as e:
         return {"msg":e.explanation}, e.status_code
     except APIError as e:
-        return {"msg":e.explanation}, e.status_code
+        return {"msg": e.explanation}, e.status_code
 
 
 @docker_swarm_bp.route('/init', methods=['POST'])

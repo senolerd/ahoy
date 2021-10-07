@@ -1,15 +1,20 @@
-from datetime import date, timedelta
-import datetime
+from concurrent.futures import thread
+import os
 import json
-import logging
 from time import sleep
-from ahoy.dockerApi import docker_client
+from typing import Dict
+from ahoy.dockerApi import docker_client, docker_client_low
 from ahoy.dockerApi.images import docker_images_bp
-from flask import jsonify, request, current_app, Response, g
+from flask import jsonify, request, Response
 from hurry.filesize import size
 from docker.errors import APIError, ImageNotFound, BuildError
 from io import BytesIO
 import concurrent.futures
+import pathlib
+import threading
+from  datetime import datetime, time, timedelta
+
+build_log_file="/tmp/_image_building_status"
 
 
 @docker_images_bp.route('/')
@@ -64,35 +69,23 @@ def delete_image():
         return {"msg": f"Something went wrong while deleting image, {err}"}, 409
 
 
-
-
-@docker_images_bp.route('/build', methods=["GET","POST"])
+@docker_images_bp.route('/build', methods=["GET","POST", "DELETE"])
 def build():
-
-    def updateImageStatus(msg):
-        with open('/tmp/_image_building_status','w') as f:
-            f.write(json.dumps(msg))
+    if request.method == "DELETE":
+        build_log_reset()
+        return {"msg":f"Image uilding log deleted"}
 
     if request.method == "GET":
-        status=''
-        try:
-            with open('/tmp/_image_building_status','r') as f:
-                content = f.readline()
-                if content.__len__() > 0: status = content 
-        except:
-            pass
+        """ Retuns latest building log"""
+        with open(build_log_file, "r") as f:
+            readlines = json.loads(f.readlines()[0])
 
-        if status:
-            return jsonify(json.loads(status))
-        else:
-            return {"msg": "No image found on building ", "code": 200}
-            
-
+            if len(readlines):
+                return Response(json.dumps(readlines), mimetype='application/json')
+            else:
+                return {'status': "no image building job"},200
 
     if request.method == "POST":
-        building_log=[]
-        updateImageStatus(building_log) 
-        
         Dockerfile = ""
         tag = json.loads(request.data.decode())['tag']
         dockerfile = json.loads(request.data.decode())['dockerfile']
@@ -102,35 +95,66 @@ def build():
             Dockerfile = Dockerfile+f"{line['instruction']} {line['value']} \n"
         f = BytesIO(Dockerfile.encode('utf-8'))
 
-        building_log.append({ "msg": [f"Building is started for {tag}"], "code": 200})
-        updateImageStatus(building_log) 
+        if os.path.exists(build_log_file) == False:
+            pathlib.Path(build_log_file).touch()
 
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            thread = executor.submit(build_image, Dockerfile=f,  tag=tag)
-            result = thread.result()
+        if os.access(build_log_file, os.W_OK)== False:
+            return {"error": "PermissionError for writing /tmp/_image_building_status "}, 400
 
-            building_log.append(result)
-            updateImageStatus(building_log) 
 
-        return {"status": "building is started"}
-
-#####################
-
+        build_thread =  threading.Thread(target=build_image, kwargs={'Dockerfile':f, 'tag':tag })
+        build_thread.start()
+        return {"msg":f"Image building has been started for {tag}"}
+        
 
 def build_image(Dockerfile, tag):
+    start_time = datetime.now()
+    build_log_write({"msg":f"[{start_time.hour}: {start_time.minute}:{start_time.second}]: Image building has been started for {tag}"})
 
     try:
         build_response = docker_client.images.build(
-            fileobj=Dockerfile, rm=True, tag=tag, labels={"ahoy_image": "True"})
+            fileobj=Dockerfile, rm=True, tag=tag, nocache=True, timeout=100000000, labels={"ahoy_image": "True"})
+        end_time = datetime.now()
+        
+        build_log_append({"msg":f"[{end_time.hour}: {end_time.minute}:{end_time.second}]:  Image building is done."})
 
-        build_log = []
-        for line in build_response[1]:
-            if "stream" in line: print('STREAM: ', build_log.append(str(line['stream']).strip()))
-           
-        return {"msg": build_log, "code": 200}
+        while True:
+            try:
+                output = build_response[1].__next__()
+                key = [key for key in output.keys()][0]
+                build_log_append({key:output[key]})
+            except StopIteration:
+                break
 
     except BuildError as e:
+        build_log_append({"error":f"Building error: {e}"})
         return {"error": [f"Building error: {e}"], "code": 400}
   
     except APIError as e:
+        build_log_append({"error":f"Api error: {e.explanation}"})
         return {"error": [f"Api error: {e.explanation}"], "code": 400}
+
+def build_log_write(msg_line):
+    """ msg_line format must be a dictionary as {msgLabel:msg} """
+
+    new_log = []
+    new_log.append(msg_line)
+
+    with open(build_log_file,'w') as f:
+        f.write( json.dumps(new_log) )
+
+def build_log_append(msg_line):
+    """ msg_line format must be a dictionary as {msgLabel:msg} """
+
+    with open(build_log_file,"r") as f4r:
+        current_log = [ line for line in json.loads(f4r.read()) ]
+
+        current_log.append(msg_line)
+
+        with open(build_log_file, "w") as f4w:
+            f4w.write(json.dumps(current_log))
+
+def build_log_reset():
+    with open(build_log_file,'w') as f:
+        f.write(json.dumps([]))
+ 

@@ -4,11 +4,11 @@ from flask.json import jsonify
 import psutil,pam, jwt
 from requests.sessions import requote_uri
 from ahoy.dockerApi import docker_bp
+from ahoy.ceph import ceph_bp
 from flask_cors import CORS
 from psutil import net_if_addrs
 from flask_login import LoginManager
-import socket
-
+import time
 
 
 app = Flask(__name__, static_url_path="", static_folder="static")
@@ -26,11 +26,24 @@ login_manager.init_app(app)
 #     return True
 
 app.register_blueprint(docker_bp)
+app.register_blueprint(ceph_bp)
 
 # @app.before_request
 # def before_any_request():
 #     print(f"request for :{request.url}, token: {request.headers.get('token')}" )
 #     return None
+
+
+@app.route('/stream')
+def stream():
+    def myGen():
+        while True:
+            yield json.dumps( {"b":"BBB", "c":"CCC"} )
+            time.sleep(2)
+
+
+
+    return app.response_class(myGen(),content_type="application/json")
 
 
 @app.route('/login', methods=["POST"])
@@ -40,11 +53,14 @@ def login():
     username = request_data_dict.get("username")
     password = request_data_dict.get("password")
 
+    if username == "root":
+        return {"msg":"root login is prohibited."},401 
+
     if p.authenticate(username, password):
         token = jwt.encode({"user":username}, app.config["SECRET_KEY"], algorithm="HS256")
         return {"token":token},200
     else:
-        return {"status":"fail"},401
+        return {"msg":"Login fail."},401
 
 
 @app.route('/validate')

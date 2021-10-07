@@ -1,6 +1,8 @@
 from flask import Blueprint
 import docker
+
 docker_client = docker.from_env()
+docker_client_low = docker.APIClient(base_url='unix://var/run/docker.sock')
 
 
 from ahoy.dockerApi.containers import docker_containers_bp

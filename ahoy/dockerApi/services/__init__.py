@@ -10,6 +10,7 @@ docker_services_bp = Blueprint(
 
 
 @docker_services_bp.route('/list')
+@docker_services_bp.route('/')
 def services():
     return jsonify([service.attrs for service in docker_client.services.list()]), 200
 
@@ -53,8 +54,10 @@ def create():
     try:
         docker_client.services.create(**service)
         return {"action": "create"}
-    except APIError as err:
-        return {'msg':str(err.explanation).split('=')[2]},400
+    except APIError as e:
+        print(e)
+        return {'msg':str(e.explanation)},400
     except Exception as e:
-        return {'msg':"Something went wrong!"},400
+        print(e)
+        return {'msg':"Something went wrong!"},401
 
