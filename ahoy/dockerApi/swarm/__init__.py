@@ -1,4 +1,3 @@
-import docker
 from ahoy.dockerApi import docker_client
 from flask import Blueprint, json, request, session, current_app
 from docker.errors import APIError, NotFound
