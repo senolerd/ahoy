@@ -1,4 +1,16 @@
-# kill -9 `ps axu|grep guni|awk -F" " {'print $2'}`
+AHOY_PORT=4444
+AHOY_HOST=192.168.1.68
+
+
+###################################################
+
+export AHOY_PORT=$AHOY_PORT
+export AHOY_HOST=$AHOY_HOST
+
+
+echo $AHOY_HOST $AHOY_PORT
+
+
 source venv/bin/activate
-#gunicorn -w 12 --timeout 180 -b 192.168.1.68:4200 ahoy:app --reload --log-level INFO
-gunicorn -w 12 --timeout 180 -b 0:4444 ahoy:app --reload --log-level INFO
+
+gunicorn -w 12 --timeout 180 -b $AHOY_HOST:$AHOY_PORT ahoy:app --reload --log-level INFO

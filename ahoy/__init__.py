@@ -8,8 +8,7 @@ from ahoy.ceph import ceph_bp
 from flask_cors import CORS
 from psutil import net_if_addrs
 from flask_login import LoginManager
-import time
-
+import time,os
 
 app = Flask(__name__, static_url_path="", static_folder="static")
 CORS(app)
@@ -18,7 +17,8 @@ app.secret_key = "super secret password"
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-
+app.config['AHOY_HOST'] = os.getenv('AHOY_HOST')
+app.config['AHOY_PORT'] = os.getenv('AHOY_PORT')
 
 # @login_manager.user_loader
 # def load_user(user_id):
@@ -32,18 +32,6 @@ app.register_blueprint(ceph_bp)
 # def before_any_request():
 #     print(f"request for :{request.url}, token: {request.headers.get('token')}" )
 #     return None
-
-
-@app.route('/stream')
-def stream():
-    def myGen():
-        while True:
-            yield json.dumps( {"b":"BBB", "c":"CCC"} )
-            time.sleep(2)
-
-
-
-    return app.response_class(myGen(),content_type="application/json")
 
 
 @app.route('/login', methods=["POST"])
@@ -72,7 +60,6 @@ def validate():
     except Exception as e:
         return {"status":"err"},401
 
-
 @app.route('/')
 def hello_world():
     return app.send_static_file('index.html')
@@ -95,24 +82,6 @@ def ip_addresses():
     return jsonify(iflist)
 
 
-# @app.route('/portavailability', methods=["POST"])
-# def checkport():
-    
-#     data = json.loads(request.data.decode())
-
-#     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#     result = s.connect_ex(('127.0.0.1', int(port)))
-
-#     if result == 0:
-#         return {"isPortAvailable":False}
-#     s.close()
-
-#     return {"isPortAvailable":True}
-    
-
-
-# def port_check(ip_port):
-#     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#     s.settimeout(1)
-#     r = s.connect_ex(ip_port)
-#     return r == 0
+@app.route('/ahoyinfo')
+def ahoyInfo():
+    return {'host': app.config['AHOY_HOST'],'port': app.config['AHOY_PORT']}

@@ -1,20 +1,18 @@
 import json
 from logging import raiseExceptions
-from flask import Blueprint, request
+from flask import Blueprint, request, current_app
 from flask.json import jsonify
-import requests
 from ahoy.dockerApi import docker_client
 from psutil import disk_partitions, disk_usage
-import os
 import subprocess
-
+import urllib3
 
 ceph_bp = Blueprint('cepn_blueprint',__name__,url_prefix='/ceph')
+
 
 @ceph_bp.route('/')
 def index():
     return "ceph index"
-
 
 @ceph_bp.route('/nodes')
 def ceph_nodes():
@@ -27,23 +25,47 @@ def ceph_nodes():
     return jsonify(ceph_nodes)
 
 
-@ceph_bp.route('/all_disks')
-def all_disks():
-    print(request.host_url)
-    # for node in json.loads(ceph_nodes().get_data().decode()):
-    #     print(node['Status']['Addr'])
-    return "all disks"
+@ceph_bp.route('/getdisks', methods=['POST'])
+def get_node_disks():
+    
+    data = json.loads(request.data.decode())
+
+    # ahoyinfo
+
+    requested_addr = str(data['ManagerStatus']['Addr']).split(":")[0] if 'ManagerStatus' in data else data['Status']['Addr']
+
+    print(requested_addr)
+    # requested_addr_ahoy_info = urllib3.PoolManager().request('GET', "http://"+requested_addr+ "/ahoyinfo")
+
+    # print(requested_addr)
 
 
-@ceph_bp.route('/disks')
+    # requested_addr_ahoy_info = urllib3.PoolManager().request('GET',)
+
+
+    # print("Requested Addr: ", requested_addr)
+
+    # res= urllib3.PoolManager().request('GET', current_app.config['AHOY_HOST']+ ':' + current_app.config['AHOY_PORT'] + '/ip')
+
+
+    # ips = json.loads(str(res.data.decode()))
+
+    # filtered_obj = filter(lambda x: x['address'] == current_app.config['AHOY_HOST'] ,ips)
+
+    # print("filtered_obj: ", list(filtered_obj))
+
+    return ""
+    
+
+@ceph_bp.route('/disks', methods=['GET','POST'])
 def disks():
+
     ignored_disks = ['loop', 'mapper','dm']
     def isIgnorede(disk_name):
         for banned_word in ignored_disks:
             if str(disk_name).startswith(banned_word):
                 return False
         
-
     cat_partition = ["cat","/proc/partitions"]
     cat_mounts = ["cat","/proc/mounts"]
 
@@ -75,6 +97,6 @@ def disks():
 
     # print(mounts)
 
-    print(disks)
+    # print(disks)
     return jsonify(disks)
 
