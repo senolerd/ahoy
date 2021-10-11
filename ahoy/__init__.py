@@ -17,6 +17,7 @@ app.secret_key = "super secret password"
 login_manager = LoginManager()
 login_manager.init_app(app)
 
+app.config['AHOY_PROTO'] = os.getenv('AHOY_PROTO')
 app.config['AHOY_HOST'] = os.getenv('AHOY_HOST')
 app.config['AHOY_PORT'] = os.getenv('AHOY_PORT')
 

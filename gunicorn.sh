@@ -7,9 +7,11 @@ source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 
+AHOY_PROTO=http
 AHOY_PORT=4444
 AHOY_HOST=$(python3 -c "import docker;docker_client=docker.from_env();print(docker_client.info()['Swarm']['NodeAddr'])")
 
+export AHOY_PROTO=$AHOY_PROTO
 export AHOY_PORT=$AHOY_PORT
 export AHOY_HOST=$AHOY_HOST
 
