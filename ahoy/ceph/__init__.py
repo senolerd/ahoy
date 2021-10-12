@@ -35,18 +35,39 @@ def get_node_disks():
 
 @ceph_bp.route('/disks', methods=['GET','POST'])
 def disks():
-    ignored_disks = ['loop', 'mapper','dm']
 
-    def isIgnorede(disk_name):
-        for banned_word in ignored_disks:
-            if str(disk_name).startswith(banned_word):
-                return False
-        
-    cat_partition = ["cat","/proc/partitions"]
-    cat_mounts = ["cat","/proc/mounts"]
+    cat_partition_cmd = ["cat","/proc/partitions"]
+    cat_mounts_cmd = ["cat","/proc/mounts"]
+    dmsetup_table_cmd = ["dmsetup","table"]
+    dmsetup_ls_cmd = ["dmsetup","ls"]
+    lvm_disks = []
 
-    partitions = subprocess.check_output(cat_partition).decode().split("\n")[2:-1]
-    mounts = [mount.split(' ')[0] for mount in subprocess.check_output(cat_mounts).decode().split('\n')]
+
+
+
+    def isIgnored(major, minor, blocks, name):
+
+        # Right of the bat ignored disks based on prefix of the disk's names
+        ignored_disks_suffix = ['loop', 'mapper', "dm-"]
+
+        for ignored_disk in ignored_disks_suffix:
+            if str(name).startswith(ignored_disk):
+                raise Exception
+    
+        # Deceting LVM partitios
+        dmsetup_table  = subprocess.check_output(dmsetup_table_cmd)
+        [ lvm_disks.append(dm_item.split(' ')[4]) for dm_item in dmsetup_table.decode().splitlines() if dm_item.split(' ')[4] not in lvm_disks ]  
+        if f"{major}:{minor}" in lvm_disks:
+            raise Exception
+
+
+
+        print("LVM Disks: ", lvm_disks)
+
+                
+
+    partitions = subprocess.check_output(cat_partition_cmd).decode().split("\n")[2:-1]
+    mounts = [mount.split(' ')[0] for mount in subprocess.check_output(cat_mounts_cmd).decode().split('\n')]
 
     disks = {}
     disk_name = ""
@@ -55,20 +76,19 @@ def disks():
         major, minor, blocks, name = partition.split()
 
         try:
-            if isIgnorede(name) == False:
-                raise Exception
+            isIgnored(major, minor, blocks, name)
 
             if int(minor) == 0:
                 disks[name] = {'major': major, 'minor': minor, 'blocks': blocks, 'partitions':[]}
                 disk_name = name
             
             if int(minor) > 0:
-                disk_part = { name:{'major': major, 'minor': minor, 'blocks': blocks, 'mounted': True if f'/dev/{name}' in mounts else False} }
+                disk_part = { name:{'major': major, 'minor': minor, 'blocks': blocks, 'usable': True if f'/dev/{name}' in mounts else False} }
                 disks[disk_name]['partitions'].append(disk_part)
         except:
             pass
             
 
-    print(disks)
+    # print(disks)
     return jsonify(disks)
 
